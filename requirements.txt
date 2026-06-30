@@ -1,0 +1,11 @@
+sqlalchemy
+psycopg2-binary
+langchain-google-genai
+python-dotenv
+pgvector
+pydantic
+uvicorn 
+fastapi
+langchain 
+langgraph
+requests
