@@ -3,9 +3,9 @@ from pydantic import BaseModel
 from datetime import date
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
-from customer_intelligence_agent.healthscore import *
-from tables import * 
-from customer_intelligence_agent.analyst import Analyst
+from .customer_intelligence_agent.healthscore import *
+from .data_ingestion.tables import * 
+from .customer_intelligence_agent.analyst import Analyst
 
 app = FastAPI()
 

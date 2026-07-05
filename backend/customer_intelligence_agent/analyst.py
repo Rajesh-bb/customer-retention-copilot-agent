@@ -1,7 +1,7 @@
-from customer_intelligence_agent.healthscore import all_health_score
+from backend.customer_intelligence_agent.healthscore import all_health_score
 from datetime import date
-from customer_intelligence_agent.healthscore import session
-from tables import *
+from backend.customer_intelligence_agent.healthscore import session
+from backend.data_ingestion.tables import *
 from datetime import timedelta
 0-49
 50-69

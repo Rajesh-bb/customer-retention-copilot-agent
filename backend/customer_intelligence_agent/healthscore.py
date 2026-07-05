@@ -1,4 +1,4 @@
-from tables import *
+from backend.data_ingestion.tables import *
 from datetime import date
 from sqlalchemy import text
 

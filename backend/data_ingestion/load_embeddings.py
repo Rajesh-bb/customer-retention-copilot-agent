@@ -1,6 +1,6 @@
 import json
 from sqlalchemy.orm import sessionmaker
-from tables import *
+from data_ingestion.tables import *
 
 Session = sessionmaker(bind = engine)
 session = Session()
