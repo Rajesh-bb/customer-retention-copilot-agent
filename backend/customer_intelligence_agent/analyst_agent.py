@@ -23,17 +23,44 @@ class State(TypedDict):
     summaries: list[dict]
     messages: Annotated[list, add_messages]
 
-llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash",api_key = key_2)
+llm = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite",api_key = key_2)
+
+@tool
+def get_all_risk_analysis(as_of_date: str):
+    """Use this tool to get the reason for all the accounts for a specific date (YYYY-MM-DD)."""
+    req = requests.get(f"http://localhost:8000/analyst_all?as_of_date={as_of_date}")
+    logger.info("got the all account and their health scores")
+    return req.json()
 
 
 @tool
 def get_high_risk_analysis(as_of_date: str):
     """Use this tool to get the reason for all the high-risk accounts for a specific date (YYYY-MM-DD)."""
-    req = requests.get(f"http://localhost:8000/analyst?as_of_date={as_of_date}")
+    req = requests.get(f"http://localhost:8000/analyst_high?as_of_date={as_of_date}")
     logger.info("got the high risk account and their health scores")
     return req.json()
+@tool
+def get_medium_risk_analysis(as_of_date: str):
+    """Use this tool to get the reason for all the medium-risk accounts for a specific date (YYYY-MM-DD)."""
+    req = requests.get(f"http://localhost:8000/analyst_medium?as_of_date={as_of_date}")
+    logger.info("got the medium risk account and their health scores")
+    return req.json()
 
-llm_with_tools = llm.bind_tools([get_high_risk_analysis])
+@tool
+def get_low_risk_analysis(as_of_date: str):
+    """Use this tool to get the reason for all the low-risk accounts for a specific date (YYYY-MM-DD)."""
+    req = requests.get(f"http://localhost:8000/analyst_low?as_of_date={as_of_date}")
+    logger.info("got the low risk account and their health scores")
+    return req.json()
+
+@tool
+def get_healthy_analysis(as_of_date: str):
+    """Use this tool to get the reason for all the healthy accounts for a specific date (YYYY-MM-DD)."""
+    req = requests.get(f"http://localhost:8000/analyst_healthy?as_of_date={as_of_date}")
+    logger.info("got the healthy account and their health scores")
+    return req.json()
+
+llm_with_tools = llm.bind_tools([get_high_risk_analysis,get_medium_risk_analysis,get_low_risk_analysis,get_healthy_analysis,get_all_risk_analysis])
 
 
 def chatbot(state: State):
@@ -49,8 +76,8 @@ def summarize_reasons(state: State):
     batch2 = accounts_data[len(accounts_data)//2:]
     # print("the last account data : ")
     # print(accounts_data)
-    llm_1 = ChatGoogleGenerativeAI(model="gemini-3.5-flash",api_key = key_2)
-    llm_2 = ChatGoogleGenerativeAI(model="gemini-3.5-flash",api_key = key_2)
+    llm_1 = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite",api_key = key_2)
+    llm_2 = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite",api_key = key_2)
     logger.info("summarizer agent is initialized")
 
     prompt1 = f"""You are a Customer Success Analyst.
@@ -66,6 +93,33 @@ def summarize_reasons(state: State):
                 4. Remove redundant details.
                 5. Keep only the most important facts.
                 6. Write a concise summary in 2–4 sentences.
+                Each account dictionary also contains a "risk_level" field.
+
+                The risk_level is an important business context and MUST be considered while summarizing.
+
+                If risk_level is "HIGH":
+                - Summarize the primary reasons that make the account high risk.
+                - Focus on churn signals, customer dissatisfaction, unresolved issues, billing problems, adoption issues, support issues, and business risks.
+                - Do NOT describe the account as healthy, stable, or an expansion opportunity.
+                - The summary should explain why the account is high risk based on the available evidence.
+
+                If risk_level is "MEDIUM":
+                - Summarize the primary reasons that make the account medium risk.
+                - Focus on moderate churn signals, declining adoption, unresolved customer concerns, onboarding challenges, billing concerns, or reduced engagement.
+                - Highlight both positive and negative signals if they coexist.
+                - The summary should explain why the account requires proactive attention to prevent becoming high risk.
+
+                If risk_level is "LOW":
+                - Summarize the primary reasons that make the account low risk.
+                - Focus on generally healthy customer behavior while mentioning any minor issues, feature requests, or adoption opportunities.
+                - Emphasize overall customer satisfaction and stable product usage.
+                - The summary should explain why the account remains healthy with only minor risks or opportunities for improvement.
+
+                If risk_level is "HEALTHY":
+                - Summarize the primary reasons that make the account healthy.
+                - Focus on strong adoption, positive customer feedback, successful outcomes, expansion opportunities, and high engagement.
+                - Mention only significant positive signals unless a minor issue requires attention.
+                - The summary should explain why the account is healthy and highlight opportunities to strengthen the customer relationship further.
 
                 IMPORTANT OUTPUT REQUIREMENTS:
 
@@ -108,6 +162,34 @@ def summarize_reasons(state: State):
                 4. Remove redundant details.
                 5. Keep only the most important facts.
                 6. Write a concise summary in 2–4 sentences.
+                Each account dictionary also contains a "risk_level" field.
+
+                The risk_level is an important business context and MUST be considered while summarizing.
+
+                If risk_level is "HIGH":
+                - Summarize the primary reasons that make the account high risk.
+                - Focus on churn signals, customer dissatisfaction, unresolved issues, billing problems, adoption issues, support issues, and business risks.
+                - Do NOT describe the account as healthy, stable, or an expansion opportunity.
+                - The summary should explain why the account is high risk based on the available evidence.
+
+                If risk_level is "MEDIUM":
+                - Summarize the primary reasons that make the account medium risk.
+                - Focus on moderate churn signals, declining adoption, unresolved customer concerns, onboarding challenges, billing concerns, or reduced engagement.
+                - Highlight both positive and negative signals if they coexist.
+                - The summary should explain why the account requires proactive attention to prevent becoming high risk.
+
+                If risk_level is "LOW":
+                - Summarize the primary reasons that make the account low risk.
+                - Focus on generally healthy customer behavior while mentioning any minor issues, feature requests, or adoption opportunities.
+                - Emphasize overall customer satisfaction and stable product usage.
+                - The summary should explain why the account remains healthy with only minor risks or opportunities for improvement.
+
+                If risk_level is "HEALTHY":
+                - Summarize the primary reasons that make the account healthy.
+                - Focus on strong adoption, positive customer feedback, successful outcomes, expansion opportunities, and high engagement.
+                - Mention only significant positive signals unless a minor issue requires attention.
+                - The summary should explain why the account is healthy and highlight opportunities to strengthen the customer relationship further.
+                
 
                 IMPORTANT OUTPUT REQUIREMENTS:
 
@@ -150,7 +232,7 @@ def summarize_reasons(state: State):
 
     combined = list1 + list2
 
-    logger.info(" completed summarizing the reason for high risk accounts")
+    logger.info(" completed summarizing the reason for accounts")
     # print(type(response))
     # print(type(response.content))
     # print(response.content)
@@ -162,16 +244,22 @@ def summarize_reasons(state: State):
 
 builder = StateGraph(State)
 
-tool_node = ToolNode([get_high_risk_analysis])
+tool_node = ToolNode([
+    get_high_risk_analysis,
+    get_medium_risk_analysis,
+    get_low_risk_analysis,
+    get_healthy_analysis,
+    get_all_risk_analysis
+])
 
 builder.add_node("llm", chatbot)
-builder.add_node("get_high_risk_analysis", tool_node)
+builder.add_node("tools", tool_node)
 builder.add_node("summarizer", summarize_reasons)
 
 builder.add_edge(START, "llm")
 
-builder.add_conditional_edges("llm", tools_condition, {"tools": "get_high_risk_analysis", END: END})
-builder.add_edge("get_high_risk_analysis", "summarizer")
+builder.add_conditional_edges("llm", tools_condition, {"tools": "tools", END: END})
+builder.add_edge("tools", "summarizer")
 builder.add_edge("summarizer", END)
 
 app = builder.compile()

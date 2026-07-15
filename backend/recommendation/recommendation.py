@@ -69,15 +69,15 @@ def prepare_input(state: State):
 
     return {"structured_input": structured_input}
 
-agent = ChatGoogleGenerativeAI(model = "gemini-3.5-flash",api_key = key_1)
+agent = ChatGoogleGenerativeAI(model = "gemini-3.1-flash-lite",api_key = key_1)
 
 def recommendation_agent(state : State):
     
     mid = len(state["structured_input"]) // 2
     batch1 = state["structured_input"][:mid]
     batch2 = state["structured_input"][mid:]
-    agent1 = ChatGoogleGenerativeAI(model = "gemini-3.5-flash",api_key = key_1)
-    agent2 = ChatGoogleGenerativeAI(model = "gemini-3.5-flash",api_key = key_1)
+    agent1 = ChatGoogleGenerativeAI(model = "gemini-3.1-flash-lite",api_key = key_1)
+    agent2 = ChatGoogleGenerativeAI(model = "gemini-3.1-flash-lite",api_key = key_1)
     logger.info("recommendation agent initialized")
 
     prompt1 = recommendation_prompt.invoke({"input" : batch1})
@@ -182,5 +182,3 @@ if __name__== "__main__":
             print(f"Bot: {clean_text}")
         else:
             print(f"Bot: {last_msg.content}")
-    
-

@@ -6,6 +6,7 @@ from sqlalchemy import text
 from .customer_intelligence_agent.healthscore import *
 from .data_ingestion.tables import * 
 from .customer_intelligence_agent.analyst import Analyst
+import random
 
 app = FastAPI()
 
@@ -37,14 +38,45 @@ def get_all_health_score(as_of_date : date):
 
     return all_result
 
-@app.get("/analyst")
-def get_analysis(as_of_date : date):
+@app.get("/analyst_all")
+def get_all_risk_analysis(as_of_date : date):
     all_result = all_health_score(as_of_date = as_of_date)
     analyst = Analyst(all_result=all_result,as_of_data=as_of_date)
     result = analyst.high_risk_analysis()
+    random.shuffle(result)
     return result
 
+@app.get("/analyst_high")
+def get_high_risk_analysis(as_of_date : date):
+    all_result = all_health_score(as_of_date = as_of_date)
+    analyst = Analyst(all_result=all_result,as_of_data=as_of_date)
+    high = analyst.high_risk_analysis()
+    medium = analyst.medium_risk_analysis()
+    low = analyst.low_risk_analysis()
+    healthy = analyst.healthy_risk_analysis()
+    result = high + medium + low + healthy
+    return result
 
+@app.get("/analyst_medium")
+def get_low_risk_analysis(as_of_date : date):
+    all_result = all_health_score(as_of_date = as_of_date)
+    analyst = Analyst(all_result=all_result,as_of_data=as_of_date)
+    result = analyst.medium_risk_analysis()
+    return result
+
+@app.get("/analyst_low")
+def get_medium_risk_analysis(as_of_date : date):
+    all_result = all_health_score(as_of_date = as_of_date)
+    analyst = Analyst(all_result=all_result,as_of_data=as_of_date)
+    result = analyst.low_risk_analysis()
+    return result
+
+@app.get("/analyst_healthy")
+def get_healthy_risk_analysis(as_of_date : date):
+    all_result = all_health_score(as_of_date = as_of_date)
+    analyst = Analyst(all_result=all_result,as_of_data=as_of_date)
+    result = analyst.healthy_risk_analysis()
+    return result
 
 
 

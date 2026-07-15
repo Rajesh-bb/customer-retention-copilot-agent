@@ -1,0 +1,6 @@
+2026-07-09 03:39:03,621 | INFO | got the high risk account and their health scores
+2026-07-09 03:39:04,343 | INFO | summarizer agent is initialized
+2026-07-09 03:39:12,807 | INFO |  completed summarizing the reason for high risk accounts
+2026-07-09 03:39:13,571 | INFO | recommendation agent initialized
+2026-07-09 03:39:20,865 | INFO | recommendations prepared
+2026-07-09 03:39:20,869 | INFO | validation of recommendations

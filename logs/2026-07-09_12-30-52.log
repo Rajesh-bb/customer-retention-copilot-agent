@@ -1,0 +1,6 @@
+2026-07-09 12:31:17,866 | INFO | got the all account and their health scores
+2026-07-09 12:31:18,871 | INFO | summarizer agent is initialized
+2026-07-09 12:31:35,111 | INFO |  completed summarizing the reason for accounts
+2026-07-09 12:31:36,215 | INFO | recommendation agent initialized
+2026-07-09 12:31:46,785 | INFO | recommendations prepared
+2026-07-09 12:31:46,811 | INFO | validation of recommendations
