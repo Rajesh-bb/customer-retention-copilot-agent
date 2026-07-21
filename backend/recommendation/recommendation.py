@@ -21,6 +21,8 @@ class State(TypedDict):
     structured_input: list[dict]
     recommendations: list[dict]
     messages: Annotated[list, add_messages]
+    analyst_output : list[dict]
+
 
 
 def prepare_input(state: State):
@@ -38,6 +40,7 @@ def prepare_input(state: State):
     structured_input = []
     #print(type(last_message))
     #print(last_message)
+    # state["analyst_output"] = last_message.copy()
 
     for element in last_message:
         account_id = element["account_id"]
@@ -67,7 +70,7 @@ def prepare_input(state: State):
 
         structured_input.append(account_data)
 
-    return {"structured_input": structured_input}
+    return {"structured_input": structured_input,"analyst_output": last_message.copy()}
 
 agent = ChatGoogleGenerativeAI(model = "gemini-3.1-flash-lite",api_key = key_1)
 

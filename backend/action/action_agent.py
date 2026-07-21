@@ -9,6 +9,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langchain_google_genai import ChatGoogleGenerativeAI
 from datetime import datetime
 import os
+from backend.recommendation.recommendation import State
+from backend.action.report_generator import generate_report as report_generator
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -16,17 +18,20 @@ load_dotenv()
 class State(TypedDict):
     recommendations: list[dict]
     payload: list[dict]
+    # full_recommendations : list[dict]
     user_input: str
     current_index: int
     approval: list[dict]
     execution_result: list[dict]
+    analyst_output: list[dict]
+    report: dict
     messages: list
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-3.1-flash-lite",
     api_key=os.getenv("GOOGLE_API_KEY_1")
 )
-
+analysis_date = 0
 def extract_date(user_input: str):
 
     prompt = f"""
@@ -50,6 +55,7 @@ def extract_date(user_input: str):
 
     if output.lower() == "null":
         return None
+    analysis_date =  datetime.strptime(output, "%Y-%m-%d").date()
 
     return datetime.strptime(output, "%Y-%m-%d").date()
 
@@ -68,6 +74,8 @@ def prepare_payload(state: State):
     })
 
     recommendations = result["recommendations"]
+
+    # full_recommendations = recommendations.copy()
 
     payload = []
 
@@ -104,7 +112,7 @@ def prepare_payload(state: State):
             payload.append(element)
             payload = payload[:5]   # only for the testing
 
-    return {"payload": payload}
+    return {"payload": payload,"analyst_output": result["analyst_output"]}
 
 
 def prepare_action_details(state: State):
@@ -240,6 +248,18 @@ def execute_action(state: State):
         "execution_result": execution_result
     }
 
+def generate_report(state: State):
+
+    report = report_generator(
+        state["analyst_output"],analysis_date = analysis_date
+    )
+
+    return {
+        "report": report
+    }
+
+
+
 builder = StateGraph(State)
 
 builder.add_node("start",start_node)
@@ -248,6 +268,8 @@ builder.add_node("prepare_action_details",prepare_action_details)
 builder.add_node("human_approval",human_approval)
 # builder.add_node("should_continue",should_continue)
 builder.add_node("execute_action",execute_action)
+
+builder.add_node("generate_report", generate_report)
 
 builder.add_edge(START, "start")
 builder.add_edge("start", "prepare_payload")
@@ -262,7 +284,10 @@ builder.add_conditional_edges(
     },
 )
 
-builder.add_edge("execute_action", END)
+builder.add_edge("execute_action", "generate_report")
+builder.add_edge("generate_report", END)
+
+# builder.add_edge("execute_action", END)
 
 #graph = builder.compile(checkpointer=InMemorySaver())
 

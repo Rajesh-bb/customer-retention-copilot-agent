@@ -262,10 +262,3 @@ def all_health_score(as_of_date : date):
 
 
 
-
-
-
-
-
-
-
