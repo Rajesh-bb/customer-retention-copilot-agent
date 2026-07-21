@@ -5,6 +5,9 @@ from reportlab.lib import colors
 
 from collections import Counter
 from datetime import datetime
+import matplotlib
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 from collections import Counter
 from reportlab.platypus import (

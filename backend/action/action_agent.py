@@ -32,6 +32,99 @@ llm = ChatGoogleGenerativeAI(
     api_key=os.getenv("GOOGLE_API_KEY_1")
 )
 analysis_date = 0
+
+def execute_action_agent(query: str):
+
+    config = {
+        "configurable": {
+            "thread_id": "slack-test"
+        }
+    }
+
+    result = graph.invoke(
+        {"user_input": query},
+        config=config
+    )
+
+    while "__interrupt__" in result:
+
+        print(result["__interrupt__"])
+
+        payload = result["__interrupt__"][0].value
+
+        while True:
+
+            decision = input("Approve/Reject/Edit: ").lower()
+
+            if decision in ["approve", "reject", "edit"]:
+                break
+
+            print("Invalid input!")
+
+        if decision == "edit":
+
+            while True:
+
+                print(f"""
+1. Action              : {payload["action"]}
+2. Reason              : {payload["reason"]}
+""")
+
+                if "email" in payload:
+                    print(f"3. Email Subject       : {payload['email']['subject']}")
+                    print(f"4. Email Body          : {payload['email']['body']}")
+
+                if "meeting" in payload:
+                    print(f"5. Meeting Subject     : {payload['meeting']['subject']}")
+                    print(f"6. Meeting Description : {payload['meeting']['description']}")
+
+                print("0. Finish Editing")
+
+                choice = input("Enter field number: ")
+
+                if choice == "0":
+                    break
+
+                elif choice == "1":
+                    payload["action"] = input("New action: ")
+
+                elif choice == "2":
+                    payload["reason"] = input("New reason: ")
+
+                elif choice == "3" and "email" in payload:
+                    payload["email"]["subject"] = input("New email subject: ")
+
+                elif choice == "4" and "email" in payload:
+                    payload["email"]["body"] = input("New email body: ")
+
+                elif choice == "5" and "meeting" in payload:
+                    payload["meeting"]["subject"] = input("New meeting subject: ")
+
+                elif choice == "6" and "meeting" in payload:
+                    payload["meeting"]["description"] = input("New meeting description: ")
+
+                else:
+                    print("Invalid choice!")
+
+            approval = {
+                "decision": "approve",
+                "payload": payload
+            }
+
+        else:
+
+            approval = {
+                "decision": decision,
+                "payload": payload
+            }
+
+        result = graph.invoke(
+            Command(resume=approval),
+            config=config
+        )
+
+    return result
+
 def extract_date(user_input: str):
 
     prompt = f"""
@@ -289,11 +382,11 @@ builder.add_edge("generate_report", END)
 
 # builder.add_edge("execute_action", END)
 
-#graph = builder.compile(checkpointer=InMemorySaver())
+graph = builder.compile(checkpointer=InMemorySaver())
 
 if __name__ == "__main__":
 
-    graph = builder.compile(checkpointer=InMemorySaver())
+    # graph = builder.compile(checkpointer=InMemorySaver())
 
     config = {"configurable": {"thread_id": "test-1"}}
 
