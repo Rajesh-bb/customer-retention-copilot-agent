@@ -83,13 +83,13 @@ def ask_about_analysis(question: str) -> str:
 
     then do NOT use this tool. Use `run_customer_analysis` instead.
     """
-    standalone_question = rewrite_question(
-            messages,
-            question,
-            )
+    # standalone_question = rewrite_question(
+    #         messages,
+    #         question,
+    #         )
 
-    print("Standalone Question:", standalone_question)
-    tool_result = chatbot(standalone_question)
+    # print("Standalone Question:", standalone_question)
+    tool_result = chatbot(question)
 
     if isinstance(tool_result, list):
         tool_result_text = "\n".join(
@@ -105,8 +105,6 @@ def ask_about_analysis(question: str) -> str:
     # print("====================================\n")
 
     return tool_result_text
-
-
 
 
 def csm_agent(user_input: str,execute_action : bool):

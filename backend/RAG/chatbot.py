@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import os
 import json
 from langchain_google_genai import ChatGoogleGenerativeAI
-
+from langchain_core.messages import HumanMessage, AIMessage
 from backend.RAG.retriever import get_retriever
 from backend.prompts.chatbot_prompt import chatbot_prompt
 
@@ -12,6 +12,8 @@ agent = ChatGoogleGenerativeAI(
     model="gemini-3.1-flash-lite",
     api_key=os.getenv("GOOGLE_API_KEY_2"),
 )
+
+chat_history = []
 
 def chatbot(user_question: str):
     retriever = get_retriever()
@@ -53,10 +55,13 @@ def chatbot(user_question: str):
     prompt = chatbot_prompt.invoke(
         {
             "context": context,
+            "chat_history": chat_history,
             "input": user_question,
         }
     )
 
     response = agent.invoke(prompt)
+    chat_history.append(HumanMessage(content=user_question))
+    chat_history.append(AIMessage(content=response.content))
 
     return response.content
