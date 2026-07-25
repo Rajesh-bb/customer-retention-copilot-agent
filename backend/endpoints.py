@@ -7,7 +7,9 @@ from .customer_intelligence_agent.healthscore import *
 from .data_ingestion.tables import * 
 from .customer_intelligence_agent.analyst import Analyst
 import random
-
+from backend.RAG.chatbot import chatbot
+from pydantic import BaseModel
+from backend.CSM.csm_agent import csm_agent
 app = FastAPI()
 
 class ReturnHealthScore(BaseModel):
@@ -78,9 +80,31 @@ def get_healthy_risk_analysis(as_of_date : date):
     result = analyst.healthy_risk_analysis()
     return result
 
+class ChatRequest(BaseModel):
+    question: str
+
+@app.post("/chat")
+def chat(request: ChatRequest):
+
+    answer = chatbot(request.question)
+
+    return {
+        "answer": answer
+    }
+
+class CSMRequest(BaseModel):
+    user_input: str
 
 
-
+@app.post("/csm/chat")
+def csm_chat(request: CSMRequest,execute_action = False):
+    result = csm_agent(
+        request.user_input,execute_action=False
+    )
+    return {
+            "response": result["response"].content[0]["text"],
+            "report_pdf": "reports/customer_retention_report.pdf"
+        }
 
 
 

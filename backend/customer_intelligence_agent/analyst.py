@@ -26,7 +26,8 @@ def get_info(input_list,input_date):
 
         billing_result = session.query(BillingEvents.event_description).filter(BillingEvents.account_id == account_id,BillingEvents.created_at<input_date,BillingEvents.created_at>=input_date-timedelta(days = 30)).all()
         result_element["account_id"] = account_id
-        result_element["risk_level"] = data["risk_level"]
+        # result_element["risk_level"] = data["risk_level"]
+        result_element["risk_level"] = data.get("risk_level", "Unknown")
 
 
         csm_note = [row.note for row in csm_note]

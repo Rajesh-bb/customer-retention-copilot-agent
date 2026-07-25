@@ -1,0 +1,7 @@
+2026-07-25 16:02:34,331 | INFO | got the all account and their health scores
+2026-07-25 16:02:37,052 | INFO | summarizer agent is initialized
+2026-07-25 16:02:51,044 | INFO |  completed summarizing the reason for accounts
+2026-07-25 16:02:52,221 | INFO | recommendation agent initialized
+2026-07-25 16:03:02,821 | INFO | recommendations prepared
+2026-07-25 16:03:02,831 | INFO | validation of recommendations
+2026-07-25 16:03:02,833 | INFO | built vector store

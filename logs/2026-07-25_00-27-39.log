@@ -1,0 +1,14 @@
+2026-07-25 00:28:23,881 | INFO | got the all account and their health scores
+2026-07-25 00:28:26,399 | INFO | summarizer agent is initialized
+2026-07-25 00:28:39,347 | INFO |  completed summarizing the reason for accounts
+2026-07-25 00:28:41,953 | INFO | recommendation agent initialized
+2026-07-25 00:28:51,051 | INFO | recommendations prepared
+2026-07-25 00:28:51,059 | INFO | validation of recommendations
+2026-07-25 00:28:51,061 | INFO | built vector store
+2026-07-25 00:28:55,976 | INFO | generated business insights
+2026-07-25 00:28:55,976 | INFO | generated business insights
+2026-07-25 00:28:55,979 | INFO | generated business insights
+2026-07-25 00:28:55,980 | INFO | generated business insights
+2026-07-25 00:28:55,980 | INFO | generated business insights
+2026-07-25 00:28:55,980 | INFO | generated business insights
+2026-07-25 00:28:59,691 | INFO | Vector store created successfully.

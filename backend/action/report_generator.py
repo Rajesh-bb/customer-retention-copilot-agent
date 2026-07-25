@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from langchain_google_genai import ChatGoogleGenerativeAI
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib import colors
+from backend.prompts.report_generator_prompts import feedback_themes_prompt,executive_summary_prompt,CLASSIFY_SENTIMENTS_PROMPT 
 
 from collections import Counter
 from datetime import datetime
@@ -49,161 +50,7 @@ def classify_sentiments(analyst_output: list[dict]) -> list[str]:
     reasons1 = [item["reason"] for item in batch1]
     reasons2 = [item["reason"] for item in batch2]
 
-    prompt =prompt = """
-# ROLE
-
-You are a Senior Customer Success Director with 15+ years of experience in B2B SaaS customer retention.
-
-Your task is to classify the CURRENT CUSTOMER SENTIMENT for each customer account.
-
-You are NOT generating recommendations.
-You are NOT summarizing.
-You are ONLY classifying sentiment.
-
---------------------------------------------------------
-
-# INPUT
-
-You will receive a JSON array.
-
-Each element is a customer account summary produced from customer emails, meetings, tickets, call transcripts, CRM notes, and product usage.
-
-Each summary already contains the important information.
-
-Treat every summary independently.
-
---------------------------------------------------------
-
-# SENTIMENT LABELS
-
-You MUST classify every summary into EXACTLY ONE of the following labels.
-
-EXCELLENT
-
-Customer is highly satisfied.
-
-Typical indicators:
-- Strong adoption
-- Positive feedback
-- Successful onboarding
-- Expansion interest
-- Upsell opportunities
-- No unresolved issues
-- High engagement
-
---------------------------------------------------------
-
-GOOD
-
-Customer is generally satisfied.
-
-Typical indicators:
-- Minor issues only
-- Small feature requests
-- Temporary concerns
-- Stable relationship
-- No churn risk
-
---------------------------------------------------------
-
-NEEDS_ATTENTION
-
-Customer is showing warning signs.
-
-Typical indicators:
-- Declining usage
-- Repeated complaints
-- Slow adoption
-- Moderate frustration
-- Delayed responses
-- Open support issues
-- Renewal concerns
-
-Customer is recoverable.
-
---------------------------------------------------------
-
-CRITICAL
-
-Customer is at immediate churn risk.
-
-Typical indicators:
-- Severe dissatisfaction
-- Escalations
-- Production outages
-- Critical bugs
-- Billing disputes
-- Payment suspension
-- Executive complaints
-- Strong churn signals
-- Multiple unresolved issues
-
---------------------------------------------------------
-
-# IMPORTANT DECISION RULES
-
-1. Use ONLY the provided summary.
-
-2. Never invent information.
-
-3. Never assume missing information.
-
-4. If both positive and negative signals exist,
-classify using the MOST SEVERE CUSTOMER SIGNAL.
-
-Example:
-
-Positive:
-Interested in expansion.
-
-Negative:
-Production outage for two weeks.
-
-Output:
-
-CRITICAL
-
---------------------------------------------------------
-
-5. Ignore possible future improvements.
-
-Classify ONLY the CURRENT customer state.
-
---------------------------------------------------------
-
-6. Every summary MUST receive exactly ONE label.
-
---------------------------------------------------------
-
-7. Preserve input order.
-
---------------------------------------------------------
-
-8. The output array length MUST exactly equal the input length.
-
---------------------------------------------------------
-
-# OUTPUT FORMAT
-
-Return ONLY a valid JSON array.
-
-Example:
-
-[
-    "GOOD",
-    "CRITICAL",
-    "EXCELLENT",
-    "NEEDS_ATTENTION"
-]
-
-Do not explain.
-
-Do not use markdown.
-
-Do not return code fences.
-
-Return ONLY the JSON array.
-"""
+    prompt = CLASSIFY_SENTIMENTS_PROMPT
 
     with ThreadPoolExecutor(max_workers=2) as executor:
 
@@ -226,78 +73,14 @@ Return ONLY the JSON array.
         return sentiments1 + sentiments2
 
 
-
-# llm = ChatGoogleGenerativeAI(
-#     model="gemini-3.1-flash-lite",
-#     api_key=os.getenv("GOOGLE_API_KEY_1")
-# )
-
-
 def extract_feedback_themes(analyst_output: list[dict]):
 
     reasons = [item["reason"] for item in analyst_output]
-
-    prompt = f"""
-You are a Senior Customer Success Director.
-
-You will receive analyst summaries from multiple customer accounts.
-
-Each summary represents the most important issues and positive signals observed for ONE customer.
-
-Your tasks are:
-
-1. Read ALL summaries.
-2. Identify the TOP 5 recurring customer pain points.
-3. Merge semantically similar pain points into one category.
-4. Count how many customer summaries mention each pain point.
-
-5. Identify the TOP 5 recurring customer appreciations.
-6. Merge semantically similar appreciations into one category.
-7. Count how many customer summaries mention each appreciation.
-
-Rules:
-- Use ONLY the information provided.
-- Do NOT invent new information.
-- Merge similar wording into a single category.
-Keep category titles extremely short (2–4 words).
-
-Examples:
-- Slow Support
-- Product Bugs
-- Billing Issues
-- API Failures
-- Helpful Support
-- Fast Resolution
-- Easy Onboarding
-- Strong Adoption
-- Sort both lists in descending order of count.
-- Return ONLY valid JSON.
-- Do NOT return markdown.
-- Do NOT explain your reasoning.
-- Do NOT include any extra text.
-
-Return exactly in this format:
-
-{{
-    "pain_points": [
-        {{
-            "title": "...",
-            "count": 0
-        }}
-    ],
-
-    "appreciations": [
-        {{
-            "title": "...",
-            "count": 0
-        }}
-    ]
-}}
-
-Customer summaries:
-
-{json.dumps(reasons, indent=2)}
-"""
+    prompt = feedback_themes_prompt.invoke(
+    {
+        "customer_summaries": json.dumps(reasons, indent=2)
+    }
+    )
 
     response = llm1.invoke(prompt)
     result = json.loads(response.content[0]["text"])
@@ -569,69 +352,14 @@ def generate_executive_summary(
 
     sentiment_counts = dict(Counter(sentiments))
 
-    prompt = f"""
-You are a Senior Customer Success Director.
+    prompt = executive_summary_prompt.invoke(
+    {
+        "sentiment_distribution": json.dumps(sentiment_counts, indent=2),
+        "pain_points": json.dumps(feedback_themes["pain_points"], indent=2),
+        "customer_appreciations": json.dumps(feedback_themes["appreciations"], indent=2),
+    }
+    )
 
-You are preparing an Executive Report for senior management.
-
-You are given:
-
-1. Customer sentiment distribution.
-2. Top customer pain points.
-3. Top customer appreciations.
-
-Sentiment Distribution
-
-{json.dumps(sentiment_counts, indent=2)}
-
-Pain Points
-
-{json.dumps(feedback_themes["pain_points"], indent=2)}
-
-Customer Appreciations
-
-{json.dumps(feedback_themes["appreciations"], indent=2)}
-
-Your task is to write an executive report.
-
-Rules
-
-- Do NOT invent information.
-- Use only the provided data.
-- Be concise.
-- Write in a professional business tone.
-- Do not use markdown.
-- Return ONLY valid JSON.
-
-Return exactly in this format
-
-{{
-    "executive_summary": "...",
-
-    "chart_insights": {{
-
-        "sentiment": "...",
-
-        "pain_points": "...",
-
-        "appreciations": "..."
-    }},
-
-    "key_findings":[
-        "...",
-        "...",
-        "..."
-    ],
-
-    "recommended_actions":[
-        "...",
-        "...",
-        "..."
-    ],
-
-    "overall_assessment":"..."
-}}
-"""
 
     response = llm1.invoke(prompt)
 
@@ -668,10 +396,6 @@ def create_pdf_report(
     body_style = styles["BodyText"]
 
     story = []
-
-    # -------------------------
-    # Title
-    # -------------------------
 
     story.append(
     Paragraph(
@@ -756,9 +480,6 @@ def create_pdf_report(
 
     story.append(Spacer(1, 0.15 * inch))
 
-    # -------------------------
-    # Executive Summary
-    # -------------------------
 
     story.append(
         Paragraph(
@@ -775,10 +496,6 @@ def create_pdf_report(
     )
 
     story.append(Spacer(1,0.15 * inch))
-
-    # -------------------------
-    # Sentiment Chart
-    # -------------------------
 
     story.append(
         Paragraph(
@@ -812,12 +529,6 @@ def create_pdf_report(
     story.append(Spacer(1, 0.15 * inch))
 
 
-    #story.append(PageBreak())
-
-    # -------------------------
-    # Pain Point Chart
-    # -------------------------
-
     story.append(
         Paragraph(
             "Figure 2. Top Customer Pain Points",
@@ -828,8 +539,8 @@ def create_pdf_report(
     story.append(
         Image(
             charts["pain_point_chart"],
-            width=4.5 * inch,
-            height=3.4* inch
+            width=4.1 * inch,
+            height=3.0* inch
         )
     )
 
@@ -851,10 +562,6 @@ def create_pdf_report(
 
     story.append(Spacer(1,0.15 * inch))
 
-    # -------------------------
-    # Appreciation Chart
-    # -------------------------
-
     story.append(
         Paragraph(
             "Figure 3. Top Customer Appreciations",
@@ -865,8 +572,8 @@ def create_pdf_report(
     story.append(
         Image(
             charts["appreciation_chart"],
-            width=4.5 * inch,
-            height=3.4 * inch
+            width=4.1 * inch,
+            height=3.0* inch
         )
     )
 
@@ -887,9 +594,6 @@ def create_pdf_report(
     )
 
     story.append(Spacer(1, 0.15 * inch))
-    # -------------------------
-    # Key Findings
-    # -------------------------
 
     story.append(
         Paragraph(
@@ -909,9 +613,6 @@ def create_pdf_report(
 
     story.append(Spacer(1, 0.25 * inch))
 
-    # -------------------------
-    # Recommended Actions
-    # -------------------------
 
     story.append(
         Paragraph(
@@ -949,29 +650,26 @@ def create_pdf_report(
 
 def generate_report(analyst_output: list[dict],analysis_date):
 
-    # Step 1
+    
     sentiments = classify_sentiments(
         analyst_output
     )
 
-    # Step 2
+
     feedback_themes = extract_feedback_themes(
         analyst_output
     )
 
-    # Step 3
     charts = create_charts(
         sentiments,
         feedback_themes
     )
 
-    # Step 4
     summary = generate_executive_summary(
         sentiments,
         feedback_themes
     )
 
-    # Step 5
     pdf_path = create_pdf_report(
         summary,
         charts,

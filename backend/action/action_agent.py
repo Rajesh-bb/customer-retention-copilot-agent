@@ -11,6 +11,8 @@ from datetime import datetime
 import os
 from backend.recommendation.recommendation import State
 from backend.action.report_generator import generate_report as report_generator
+from backend.RAG.vector_store import build_vector_store
+from backend.logger.custom_logger import logger
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -24,16 +26,20 @@ class State(TypedDict):
     approval: list[dict]
     execution_result: list[dict]
     analyst_output: list[dict]
+    analysis_date : datetime
     report: dict
     messages: list
+    execute_actions: bool
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-3.1-flash-lite",
     api_key=os.getenv("GOOGLE_API_KEY_1")
-)
-analysis_date = 0
+) 
 
-def execute_action_agent(query: str):
+def execute_action_agent(
+    query: str,
+    execute_actions: bool = True
+):
 
     config = {
         "configurable": {
@@ -42,9 +48,15 @@ def execute_action_agent(query: str):
     }
 
     result = graph.invoke(
-        {"user_input": query},
+        {
+            "user_input": query,
+            "execute_actions": execute_actions
+        },
         config=config
     )
+
+    if not execute_actions:
+        return result
 
     while "__interrupt__" in result:
 
@@ -148,7 +160,6 @@ def extract_date(user_input: str):
 
     if output.lower() == "null":
         return None
-    analysis_date =  datetime.strptime(output, "%Y-%m-%d").date()
 
     return datetime.strptime(output, "%Y-%m-%d").date()
 
@@ -156,7 +167,8 @@ def start_node(state: State):
     return {
         "current_index": 0,
         "approval": [],
-        "execution_result": []
+        "execution_result": [],
+        "analysis_date": extract_date(state["user_input"])
     }
 
 
@@ -165,7 +177,10 @@ def prepare_payload(state: State):
     result = recommendation_graph.invoke({
         "user_input": state["user_input"]
     })
-
+    logger.info("built vector store")
+    build_vector_store(
+    result["structured_input"],state["analysis_date"]
+    )
     recommendations = result["recommendations"]
 
     # full_recommendations = recommendations.copy()
@@ -242,6 +257,12 @@ def prepare_action_details(state: State):
 
     return {"payload": state["payload"]}
 
+def route_after_prepare(state: State):
+
+    if state["execute_actions"]:
+        return "human_approval"
+
+    return "generate_report"
 
 def human_approval(state: State):
 
@@ -344,7 +365,7 @@ def execute_action(state: State):
 def generate_report(state: State):
 
     report = report_generator(
-        state["analyst_output"],analysis_date = analysis_date
+        state["analyst_output"],analysis_date = state["analysis_date"]
     )
 
     return {
@@ -367,7 +388,15 @@ builder.add_node("generate_report", generate_report)
 builder.add_edge(START, "start")
 builder.add_edge("start", "prepare_payload")
 builder.add_edge("prepare_payload", "prepare_action_details")
-builder.add_edge("prepare_action_details", "human_approval")
+# builder.add_edge("prepare_action_details", "human_approval")
+builder.add_conditional_edges(
+    "prepare_action_details",
+    route_after_prepare,
+    {
+        "human_approval": "human_approval",
+        "generate_report": "generate_report",
+    },
+)
 builder.add_conditional_edges(
     "human_approval",
     should_continue,
@@ -393,7 +422,7 @@ if __name__ == "__main__":
     user_input = input("Enter your query: ")
 
     result = graph.invoke(
-        {"user_input": user_input},
+        {"user_input": user_input, "execute_actions": True},
         config=config
     )
 

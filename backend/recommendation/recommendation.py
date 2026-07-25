@@ -36,11 +36,7 @@ def prepare_input(state: State):
     except json.JSONDecodeError:
         logger.error("invalid response from the summarizer node from the customer intelligence agent")
         raise
-    #last_message = json.loads(last_message[0]["text"])
     structured_input = []
-    #print(type(last_message))
-    #print(last_message)
-    # state["analyst_output"] = last_message.copy()
 
     for element in last_message:
         account_id = element["account_id"]
@@ -83,8 +79,8 @@ def recommendation_agent(state : State):
     agent2 = ChatGoogleGenerativeAI(model = "gemini-3.1-flash-lite",api_key = key_1)
     logger.info("recommendation agent initialized")
 
-    prompt1 = recommendation_prompt.invoke({"input" : batch1})
    
+    prompt1 = recommendation_prompt.invoke({"input" : batch1})
     prompt2 = recommendation_prompt.invoke({"input" : batch2})
    
     with ThreadPoolExecutor(max_workers=2) as executor:
@@ -127,10 +123,16 @@ def validate(state : State):
     recommendations = state["recommendations"]
     logger.info("validation of recommendations")
     for rec in recommendations:
+        # requires_approval = rec.get("requires_human_approval")
+        action = rec.get("recommended_action")
+        priority = rec.get("priority")
+        requires_approval = rec.get("requires_human_approval")
+
+        # Validate presence, allowed values, and data types
         if (
-            rec["recommended_action"] not in ALLOWED_ACTIONS or
-            rec["priority"] not in ALLOWED_PRIORITIES or
-            not isinstance(rec["requires_human_approval"], bool)
+            action not in ALLOWED_ACTIONS
+            or priority not in ALLOWED_PRIORITIES
+            or not isinstance(requires_approval, bool)
         ):
 
             prompt = f"""
