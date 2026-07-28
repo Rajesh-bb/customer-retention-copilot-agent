@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 from backend.logger.custom_logger import logger
 from langchain_core.messages import AIMessage
 from concurrent.futures import ThreadPoolExecutor
+from backend.customer_intelligence_agent.healthscore import all_health_score
+from backend.customer_intelligence_agent.analyst import Analyst
+from datetime import date
 import json
 import os
 load_dotenv()
@@ -28,37 +31,90 @@ llm = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite",api_key = key_2)
 @tool
 def get_all_risk_analysis(as_of_date: str):
     """Use this tool to get the reason for all the accounts for a specific date (YYYY-MM-DD)."""
-    req = requests.get(f"http://localhost:8000/analyst_all?as_of_date={as_of_date}")
-    logger.info("got the all account and their health scores")
-    return req.json()
+    as_of_date = date.fromisoformat(as_of_date)
+    all_result = all_health_score(as_of_date=as_of_date)
+
+    analyst = Analyst(
+        all_result=all_result,
+        as_of_data=as_of_date,
+    )
+
+    high = analyst.high_risk_analysis()
+    medium = analyst.medium_risk_analysis()
+    low = analyst.low_risk_analysis()
+    healthy = analyst.healthy_risk_analysis()
+
+    result = high + medium + low + healthy
+
+    logger.info("got the account analysis")
+
+    return result
 
 
 @tool
 def get_high_risk_analysis(as_of_date: str):
     """Use this tool to get the reason for all the high-risk accounts for a specific date (YYYY-MM-DD)."""
-    req = requests.get(f"http://localhost:8000/analyst_high?as_of_date={as_of_date}")
-    logger.info("got the high risk account and their health scores")
-    return req.json()
+    as_of_date = date.fromisoformat(as_of_date)
+    all_result = all_health_score(as_of_date=as_of_date)
+
+    analyst = Analyst(
+        all_result=all_result,
+        as_of_data=as_of_date,
+    )
+
+    result = analyst.high_risk_analysis()
+
+    logger.info("got the healthy accounts")
+
+    return result
 @tool
 def get_medium_risk_analysis(as_of_date: str):
     """Use this tool to get the reason for all the medium-risk accounts for a specific date (YYYY-MM-DD)."""
-    req = requests.get(f"http://localhost:8000/analyst_medium?as_of_date={as_of_date}")
-    logger.info("got the medium risk account and their health scores")
-    return req.json()
+    as_of_date = date.fromisoformat(as_of_date)
+    all_result = all_health_score(as_of_date=as_of_date)
+
+    analyst = Analyst(
+        all_result=all_result,
+        as_of_data=as_of_date,
+    )
+
+    result = analyst.medium_risk_analysis()
+
+    logger.info("got the medium risk accounts")
+
+    return result
 
 @tool
 def get_low_risk_analysis(as_of_date: str):
     """Use this tool to get the reason for all the low-risk accounts for a specific date (YYYY-MM-DD)."""
-    req = requests.get(f"http://localhost:8000/analyst_low?as_of_date={as_of_date}")
-    logger.info("got the low risk account and their health scores")
-    return req.json()
+    as_of_date = date.fromisoformat(as_of_date)
+    all_result = all_health_score(as_of_date=as_of_date)
+
+    analyst = Analyst(
+        all_result=all_result,
+        as_of_data=as_of_date,
+    )
+
+    result = analyst.low_risk_analysis()
+
+    logger.info("got the low risk accounts")
+
+    return result
 
 @tool
 def get_healthy_analysis(as_of_date: str):
     """Use this tool to get the reason for all the healthy accounts for a specific date (YYYY-MM-DD)."""
-    req = requests.get(f"http://localhost:8000/analyst_healthy?as_of_date={as_of_date}")
-    logger.info("got the healthy account and their health scores")
-    return req.json()
+    as_of_date = date.fromisoformat(as_of_date)
+    all_result = all_health_score(as_of_date=as_of_date)
+
+    analyst = Analyst(
+        all_result=all_result,
+        as_of_data=as_of_date,
+    )
+
+    result = analyst.healthy_risk_analysis()
+    logger.info("got the healthy accounts")
+    return result
 
 llm_with_tools = llm.bind_tools([get_high_risk_analysis,get_medium_risk_analysis,get_low_risk_analysis,get_healthy_analysis,get_all_risk_analysis])
 
