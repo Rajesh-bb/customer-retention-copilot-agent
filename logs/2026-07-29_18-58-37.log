@@ -1,0 +1,4 @@
+2026-07-29 18:59:06,041 | INFO | got the account analysis
+2026-07-29 18:59:10,665 | INFO | summarizer agent is initialized
+2026-07-29 18:59:33,632 | INFO |  completed summarizing the reason for accounts
+2026-07-29 18:59:35,242 | INFO | recommendation agent initialized

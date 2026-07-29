@@ -38,104 +38,169 @@ llm = ChatGoogleGenerativeAI(
 
 def execute_action_agent(
     query: str,
-    execute_actions: bool = True
+    thread_id: str,
+    execute_actions: bool = True,
 ):
-
     config = {
         "configurable": {
-            "thread_id": "slack-test"
+            "thread_id": thread_id
         }
     }
-
+    print("========== execute_action_agent START ==========")
     result = graph.invoke(
         {
             "user_input": query,
-            "execute_actions": execute_actions
+            "execute_actions": execute_actions,
         },
-        config=config
+        config=config,
     )
+    print("Graph returned:")
+    # print(result)
+   
+    if "__interrupt__" in result:
+        print("Returning waiting_for_approval")
+        return {
+            "status": "waiting_for_approval",
+            "payload": result["__interrupt__"][0].value,
+        }
+    print("Returning completed")
+    return {
+        "status": "completed",
+        "result": result,
+    }
 
-    if not execute_actions:
-        return result
+def resume_action_agent(
+    approval: dict,
+    thread_id: str,
+):
+    config = {
+        "configurable": {
+            "thread_id": thread_id
+        }
+    }
+    print("========== resume_action_agent START ==========")
+    print("Approval received:")
+    print(approval)
 
-    while "__interrupt__" in result:
+    result = graph.invoke(
+        Command(resume=approval),
+        config=config,
+    )
+    print("Graph resumed:") #
+    print(result) #
 
-        print(result["__interrupt__"])
+    if "__interrupt__" in result:
+        print("Returning another approval")
+        return {
+            "status": "waiting_for_approval",
+            "payload": result["__interrupt__"][0].value,
+        }
+    print("Returning completed after resume")
+    return {
+        "status": "completed",
+        "result": result,
+    }
 
-        payload = result["__interrupt__"][0].value
+# def execute_action_agent(
+#     query: str,
+#     execute_actions: bool = True
+# ):
 
-        while True:
+#     config = {
+#         "configurable": {
+#             "thread_id": "slack-test"
+#         }
+#     }
 
-            decision = input("Approve/Reject/Edit: ").lower()
+#     result = graph.invoke(
+#         {
+#             "user_input": query,
+#             "execute_actions": execute_actions
+#         },
+#         config=config
+#     )
 
-            if decision in ["approve", "reject", "edit"]:
-                break
+#     if not execute_actions:
+#         return result
 
-            print("Invalid input!")
+#     while "__interrupt__" in result:
 
-        if decision == "edit":
+#         print(result["__interrupt__"])
 
-            while True:
+#         payload = result["__interrupt__"][0].value
 
-                print(f"""
-1. Action              : {payload["action"]}
-2. Reason              : {payload["reason"]}
-""")
+#         while True:
 
-                if "email" in payload:
-                    print(f"3. Email Subject       : {payload['email']['subject']}")
-                    print(f"4. Email Body          : {payload['email']['body']}")
+#             decision = input("Approve/Reject/Edit: ").lower()
 
-                if "meeting" in payload:
-                    print(f"5. Meeting Subject     : {payload['meeting']['subject']}")
-                    print(f"6. Meeting Description : {payload['meeting']['description']}")
+#             if decision in ["approve", "reject", "edit"]:
+#                 break
 
-                print("0. Finish Editing")
+#             print("Invalid input!")
 
-                choice = input("Enter field number: ")
+#         if decision == "edit":
 
-                if choice == "0":
-                    break
+#             while True:
 
-                elif choice == "1":
-                    payload["action"] = input("New action: ")
+#                 print(f"""
+# 1. Action              : {payload["action"]}
+# 2. Reason              : {payload["reason"]}
+# """)
 
-                elif choice == "2":
-                    payload["reason"] = input("New reason: ")
+#                 if "email" in payload:
+#                     print(f"3. Email Subject       : {payload['email']['subject']}")
+#                     print(f"4. Email Body          : {payload['email']['body']}")
 
-                elif choice == "3" and "email" in payload:
-                    payload["email"]["subject"] = input("New email subject: ")
+#                 if "meeting" in payload:
+#                     print(f"5. Meeting Subject     : {payload['meeting']['subject']}")
+#                     print(f"6. Meeting Description : {payload['meeting']['description']}")
 
-                elif choice == "4" and "email" in payload:
-                    payload["email"]["body"] = input("New email body: ")
+#                 print("0. Finish Editing")
 
-                elif choice == "5" and "meeting" in payload:
-                    payload["meeting"]["subject"] = input("New meeting subject: ")
+#                 choice = input("Enter field number: ")
 
-                elif choice == "6" and "meeting" in payload:
-                    payload["meeting"]["description"] = input("New meeting description: ")
+#                 if choice == "0":
+#                     break
 
-                else:
-                    print("Invalid choice!")
+#                 elif choice == "1":
+#                     payload["action"] = input("New action: ")
 
-            approval = {
-                "decision": "approve",
-                "payload": payload
-            }
+#                 elif choice == "2":
+#                     payload["reason"] = input("New reason: ")
 
-        else:
+#                 elif choice == "3" and "email" in payload:
+#                     payload["email"]["subject"] = input("New email subject: ")
 
-            approval = {
-                "decision": decision,
-                "payload": payload
-            }
+#                 elif choice == "4" and "email" in payload:
+#                     payload["email"]["body"] = input("New email body: ")
 
-        result = graph.invoke(
-            Command(resume=approval),
-            config=config
-        )
+#                 elif choice == "5" and "meeting" in payload:
+#                     payload["meeting"]["subject"] = input("New meeting subject: ")
 
-    return result
+#                 elif choice == "6" and "meeting" in payload:
+#                     payload["meeting"]["description"] = input("New meeting description: ")
+
+#                 else:
+#                     print("Invalid choice!")
+
+#             approval = {
+#                 "decision": "approve",
+#                 "payload": payload
+#             }
+
+#         else:
+
+#             approval = {
+#                 "decision": decision,
+#                 "payload": payload
+#             }
+
+#         result = graph.invoke(
+#             Command(resume=approval),
+#             config=config
+#         )
+
+#     return result
 
 def extract_date(user_input: str):
 

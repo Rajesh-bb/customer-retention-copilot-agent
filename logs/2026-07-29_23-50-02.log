@@ -1,0 +1,12 @@
+2026-07-29 23:51:05,194 | INFO | got the account analysis
+2026-07-29 23:51:07,614 | INFO | summarizer agent is initialized
+2026-07-29 23:51:31,299 | INFO |  completed summarizing the reason for accounts
+2026-07-29 23:51:33,941 | INFO | recommendation agent initialized
+2026-07-29 23:51:54,559 | INFO | recommendations prepared
+2026-07-29 23:51:54,570 | INFO | validation of recommendations
+2026-07-29 23:51:54,572 | INFO | built vector store
+2026-07-29 23:52:04,174 | INFO | generated business insights
+2026-07-29 23:52:04,180 | INFO | Splitting 200 account documents across 2 parallel embedders: Part 1 (100), Part 2 (100).
+2026-07-29 23:52:10,139 | INFO | Account vector store created successfully.
+2026-07-29 23:52:10,140 | INFO | Splitting 8 business documents across 2 parallel embedders: Part 1 (4), Part 2 (4).
+2026-07-29 23:52:11,643 | INFO | Business insight vector store created successfully.

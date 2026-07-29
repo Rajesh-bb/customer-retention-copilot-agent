@@ -3,7 +3,7 @@ import os
 from backend.prompts.csm_prompt import csm_prompt
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.tools import tool
-
+import json
 from backend.action.action_agent import execute_action_agent
 from backend.RAG.chatbot import chatbot
 from backend.prompts.rewriter_prompt import rewrite_question_prompt
@@ -99,6 +99,9 @@ def ask_about_analysis(question: str) -> str:
         )
     else:
         tool_result_text = str(tool_result)
+    print("CHATBOT RETURNED:")
+    print(type(tool_result_text))
+    print(tool_result_text)
 
     # print("\n========== CHATBOT OUTPUT ==========")
     # print(tool_result_text)
@@ -107,7 +110,7 @@ def ask_about_analysis(question: str) -> str:
     return tool_result_text
 
 
-def csm_agent(user_input: str,execute_action : bool):
+def csm_agent(user_input: str, thread_id: str,execute_action : bool):
 
     @tool
     def run_customer_analysis(query: str) -> str:
@@ -132,9 +135,17 @@ def csm_agent(user_input: str,execute_action : bool):
 
         result = execute_action_agent(
             query=query,
+            thread_id=thread_id,
             execute_actions=execute_action
         )
+        import pprint
 
+        print("===================")
+        pprint.pprint(result["payload"])
+        print("in the csm agent file")
+        print(type(result["payload"]))
+        print("===================")
+        print(result)
         return result
     
     llm_with_tools = llm.bind_tools([
@@ -174,10 +185,33 @@ def csm_agent(user_input: str,execute_action : bool):
             tool_name = tool_call["name"]
 
             tool_result = selected_tool.invoke(tool_call)
+            # tool_result = selected_tool.invoke(tool_call)
+
+            print("After invoke")
+            # if isinstance(tool_result, ToolMessage):
+            #     tool_result = json.loads(tool_result.content)
+            #     print(type(tool_result))
+
+            if isinstance(tool_result, ToolMessage):
+
+                if tool_call["name"] == "run_customer_analysis":
+                    tool_result = json.loads(tool_result.content)
+                else:
+                    tool_result = tool_result.content
+
+            if (
+                tool_call["name"] == "run_customer_analysis"
+                and tool_result["status"] == "waiting_for_approval"
+            ):
+                print("Returning from CSM")
+                #print(tool_result)
+                return {
+                    "status": "waiting_for_approval",
+                    "payload": tool_result["payload"],
+                }
 
             tool_message = ToolMessage(
-                content=tool_result,
-                # artifact=tool_result,
+                content=str(tool_result),
                 tool_call_id=tool_call["id"],
                 name=tool_call["name"],
             )
@@ -194,11 +228,21 @@ def csm_agent(user_input: str,execute_action : bool):
 
         messages.append(final_response)
 
-        return {
+        result = {
             "response": final_response,
-            "graph_state": tool_result,
-            "analysis_ran": tool_name == "run_customer_analysis"
+            "analysis_ran": tool_name == "run_customer_analysis",
         }
+
+        if tool_name == "run_customer_analysis":
+            result["graph_state"] = tool_result["result"]
+
+        return result
+
+        # return {
+        #     "response": final_response,
+        #     "graph_state": tool_result["result"],
+        #     "analysis_ran": tool_name == "run_customer_analysis"
+        # }
 
     return {
         "response": response,
