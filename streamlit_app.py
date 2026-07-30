@@ -7,25 +7,40 @@ def stream_text(text):
         yield word + " "
         time.sleep(0.02)
 
-def render_report(report: dict):
+def should_stream(text: str) -> bool:
+
+    markdown_score = 0
+
+    markdown_score += text.count("|---")
+    markdown_score += text.count("```")
+    markdown_score += text.count("##")
+    markdown_score += text.count("\n- ")
+    markdown_score += text.count("\n* ")
+
+    return markdown_score == 0
+
+
+def render_report(report: dict, show_download=True):
 
     st.divider()
 
     st.title("📊 Customer Retention Report")
 
-    # ----------------------------------------------------------
-    # Executive Summary
-    # ----------------------------------------------------------
 
     st.header("Executive Summary")
-    st.write(report["summary"]["executive_summary"])
+    st.write_stream(
+    stream_text(report["summary"]["executive_summary"])
+    )
 
     st.header("Overall Assessment")
-    st.info(report["summary"]["overall_assessment"])
+    assessment = st.empty()
 
-    # ----------------------------------------------------------
-    # Key Findings & Recommended Actions
-    # ----------------------------------------------------------
+    assessment.info(
+    st.write_stream(
+        stream_text(report["summary"]["overall_assessment"])
+    )
+    )
+
 
     col1, col2 = st.columns(2)
 
@@ -34,20 +49,23 @@ def render_report(report: dict):
         st.subheader("Key Findings")
 
         for finding in report["summary"]["key_findings"]:
-            st.markdown(f"• {finding}")
+
+            st.write_stream(
+                stream_text(f"• {finding}")
+            )
 
     with col2:
 
         st.subheader("Recommended Actions")
 
         for action in report["summary"]["recommended_actions"]:
-            st.markdown(f"• {action}")
+
+            st.write_stream(
+                stream_text(f"• {action}")
+            )
 
     st.divider()
 
-    # ----------------------------------------------------------
-    # Charts
-    # ----------------------------------------------------------
 
     st.header("Visual Insights")
 
@@ -80,10 +98,6 @@ def render_report(report: dict):
 
     st.divider()
 
-    # ----------------------------------------------------------
-    # Feedback Themes
-    # ----------------------------------------------------------
-
     col1, col2 = st.columns(2)
 
     with col1:
@@ -108,10 +122,6 @@ def render_report(report: dict):
 
     st.divider()
 
-    # ----------------------------------------------------------
-    # Chart Insights
-    # ----------------------------------------------------------
-
     st.header("Chart Insights")
 
     st.markdown(
@@ -128,27 +138,21 @@ def render_report(report: dict):
 
     st.divider()
 
-    # ----------------------------------------------------------
-    # Download PDF
-    # ----------------------------------------------------------
 
     st.header("Download Report")
+    if show_download:
 
-    with open(report["pdf"], "rb") as pdf_file:
+        with open(report["pdf"], "rb") as pdf_file:
 
-        st.download_button(
-            label="📄 Download Customer Retention Report",
-            data=pdf_file,
-            file_name="customer_retention_report.pdf",
-            mime="application/pdf",
-            use_container_width=True,
-        )
+            st.download_button(
+                label="📄 Download Customer Retention Report",
+                data=pdf_file,
+                file_name="customer_retention_report.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
 
 
-
-# ------------------------------------------------------------------
-# Configuration
-# ------------------------------------------------------------------
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -160,9 +164,6 @@ st.set_page_config(
 
 st.title("🤖 Customer Retention Copilot")
 
-# ------------------------------------------------------------------
-# Session State
-# ------------------------------------------------------------------
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = None
@@ -173,17 +174,13 @@ if "messages" not in st.session_state:
 if "pending_payload" not in st.session_state:
     st.session_state.pending_payload = None
 
-if "show_report" not in st.session_state:
-    st.session_state.show_report = False
+reports = [
+    message
+    for message in st.session_state.messages
+    if message["type"] == "report"
+]
 
-# ------------------------------------------------------------------
-# Display Chat History
-# ------------------------------------------------------------------
-
-# for message in st.session_state.messages:
-
-#     with st.chat_message(message["role"]):
-#         st.markdown(message["content"])
+last_report = reports[-1] if reports else None
 
 for message in st.session_state.messages:
 
@@ -193,32 +190,28 @@ for message in st.session_state.messages:
             st.markdown(message["content"])
 
         elif message["type"] == "report":
-            render_report(message["content"])
+            render_report(
+            message["content"],
+            show_download=(message is last_report),
+        )
 
-# ------------------------------------------------------------------
-# User Input
-# ------------------------------------------------------------------
 
 prompt = st.chat_input("Ask something...")
 
 if prompt:
 
-    # -----------------------------
-    # Display user message
-    # -----------------------------
+
     st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": prompt
-        }
+    {
+        "role": "user",
+        "type": "text",
+        "content": prompt,
+    }
     )
 
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # -----------------------------
-    # Call FastAPI
-    # -----------------------------
     request_body = {
         "thread_id": st.session_state.thread_id,
         "message": prompt,
@@ -242,33 +235,30 @@ if prompt:
             st.error(str(e))
             st.stop()
 
-    # -----------------------------
-    # Save thread id
-    # -----------------------------
     st.session_state.thread_id = data["thread_id"]
 
-    # -----------------------------
-    # Handle normal chat
-    # -----------------------------
     if data["type"] == "chat":
-        st.session_state.show_report = False ##########
 
         assistant_message = data["response"]
 
 
         with st.chat_message("assistant"):
-            st.write_stream(stream_text(assistant_message))
+
+            if should_stream(assistant_message):
+                st.write_stream(stream_text(assistant_message))
+            else:
+                st.markdown(assistant_message)
+
 
         st.session_state.messages.append(
-            {
-                "role": "assistant",
-                "content": assistant_message,
-            }
-        )
+        {
+            "role": "assistant",
+            "type": "text",
+            "content": assistant_message,
+        }
+    )
 
-    # -----------------------------
-    # Handle approval
-    # -----------------------------
+
     elif data["type"] == "approval":
 
         st.session_state.pending_payload = data["payload"]
@@ -281,19 +271,15 @@ if prompt:
             st.markdown(assistant_message)
 
         st.session_state.messages.append(
-            {
-                "role": "assistant",
-                "content": assistant_message,
-            }
-        )
-
-    # -----------------------------
-    # Handle report
-    # -----------------------------
+    {
+        "role": "assistant",
+        "type": "text",
+        "content": assistant_message,
+    }
+)
+  
     elif data["type"] == "report":
 
-        st.session_state.report = data["graph_state"]
-        st.session_state.show_report = True#######
 
         assistant_message = "Analysis completed successfully."
 
@@ -303,24 +289,25 @@ if prompt:
         st.session_state.messages.append(
             {
                 "role": "assistant",
-                "content": assistant_message,
+                "type": "text",
+                "content": "Analysis completed successfully.",
             }
         )
 
-# ------------------------------------------------------------------
-# Placeholder for Approval UI
-# (We'll implement this in Part 2)
-# ------------------------------------------------------------------
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "type": "report",
+                "content": data["graph_state"],
+            }
+        )
+
+    
 
 if st.session_state.pending_payload is not None:
 
     st.divider()
 
-    # st.info("Approval UI will be added in Part 2.")
-
-# ------------------------------------------------------------------
-# Approval UI
-# ------------------------------------------------------------------
 
 if st.session_state.pending_payload is not None:
 
@@ -403,9 +390,6 @@ if st.session_state.pending_payload is not None:
 
     approve_col, reject_col = st.columns(2)
 
-    # ----------------------------------------------------------
-    # APPROVE
-    # ----------------------------------------------------------
 
     with approve_col:
 
@@ -441,35 +425,35 @@ if st.session_state.pending_payload is not None:
                     st.error(str(e))
                     st.stop()
 
-            # Another approval required
+
             if data["type"] == "approval":
 
                 st.session_state.pending_payload = data["payload"]
 
                 st.rerun()
 
-            # Final report
             else:
 
                 st.session_state.pending_payload = None
-                st.session_state.report = data["graph_state"]
-                st.session_state.show_report = True
-                # st.session_state.pending_payload = None
-                # st.session_state.report = data["graph_state"]
-                # st.session_state.operation = data["operation"]
 
                 st.session_state.messages.append(
                     {
                         "role": "assistant",
+                        "type": "text",
                         "content": "Analysis completed successfully.",
+                    }
+                )
+
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "type": "report",
+                        "content": data["graph_state"],
                     }
                 )
 
                 st.rerun()
 
-    # ----------------------------------------------------------
-    # REJECT
-    # ----------------------------------------------------------
 
     with reject_col:
 
@@ -513,311 +497,19 @@ if st.session_state.pending_payload is not None:
             else:
 
                 st.session_state.pending_payload = None
-                st.session_state.report = data["graph_state"]
 
                 st.session_state.messages.append(
                     {
                         "role": "assistant",
+                        "type": "text",
                         "content": "Analysis completed successfully.",
                     }
                 )
 
-                st.rerun()
-
-# def render_report(report: dict):
-
-#     st.divider()
-
-#     st.title("📊 Customer Retention Report")
-
-#     # ----------------------------------------------------------
-#     # Executive Summary
-#     # ----------------------------------------------------------
-
-#     st.header("Executive Summary")
-#     st.write(report["summary"]["executive_summary"])
-
-#     st.header("Overall Assessment")
-#     st.info(report["summary"]["overall_assessment"])
-
-#     # ----------------------------------------------------------
-#     # Key Findings & Recommended Actions
-#     # ----------------------------------------------------------
-
-#     col1, col2 = st.columns(2)
-
-#     with col1:
-
-#         st.subheader("Key Findings")
-
-#         for finding in report["summary"]["key_findings"]:
-#             st.markdown(f"• {finding}")
-
-#     with col2:
-
-#         st.subheader("Recommended Actions")
-
-#         for action in report["summary"]["recommended_actions"]:
-#             st.markdown(f"• {action}")
-
-#     st.divider()
-
-#     # ----------------------------------------------------------
-#     # Charts
-#     # ----------------------------------------------------------
-
-#     st.header("Visual Insights")
-
-#     chart_col1, chart_col2 = st.columns(2)
-
-#     with chart_col1:
-
-#         st.subheader("Sentiment Distribution")
-
-#         st.image(
-#             report["charts"]["sentiment_chart"],
-#             use_container_width=True,
-#         )
-
-#         st.subheader("Pain Points")
-
-#         st.image(
-#             report["charts"]["pain_point_chart"],
-#             use_container_width=True,
-#         )
-
-#     with chart_col2:
-
-#         st.subheader("Appreciations")
-
-#         st.image(
-#             report["charts"]["appreciation_chart"],
-#             use_container_width=True,
-#         )
-
-#     st.divider()
-
-#     # ----------------------------------------------------------
-#     # Feedback Themes
-#     # ----------------------------------------------------------
-
-#     col1, col2 = st.columns(2)
-
-#     with col1:
-
-#         st.subheader("Top Pain Points")
-
-#         for pain in report["feedback_themes"]["pain_points"]:
-
-#             st.markdown(
-#                 f"**{pain['title']}** — {pain['count']} accounts"
-#             )
-
-#     with col2:
-
-#         st.subheader("Top Appreciations")
-
-#         for item in report["feedback_themes"]["appreciations"]:
-
-#             st.markdown(
-#                 f"**{item['title']}** — {item['count']} accounts"
-#             )
-
-#     st.divider()
-
-#     # ----------------------------------------------------------
-#     # Chart Insights
-#     # ----------------------------------------------------------
-
-#     st.header("Chart Insights")
-
-#     st.markdown(
-#         f"**Sentiment:** {report['summary']['chart_insights']['sentiment']}"
-#     )
-
-#     st.markdown(
-#         f"**Pain Points:** {report['summary']['chart_insights']['pain_points']}"
-#     )
-
-#     st.markdown(
-#         f"**Appreciations:** {report['summary']['chart_insights']['appreciations']}"
-#     )
-
-#     st.divider()
-
-#     # ----------------------------------------------------------
-#     # Download PDF
-#     # ----------------------------------------------------------
-
-#     st.header("Download Report")
-
-#     with open(report["pdf"], "rb") as pdf_file:
-
-#         st.download_button(
-#             label="📄 Download Customer Retention Report",
-#             data=pdf_file,
-#             file_name="customer_retention_report.pdf",
-#             mime="application/pdf",
-#             use_container_width=True,
-#         )
-
-
-if (
-    st.session_state.show_report
-    and st.session_state.report is not None
-):
-    render_report(st.session_state.report)
-# if data["operation"] == "analysis":
-#     render_report(data["graph_state"])
-# # ------------------------------------------------------------------
-# # Report Viewer
-# # ------------------------------------------------------------------
-
-# if st.session_state.report is not None:
-
-#     report = st.session_state.report
-
-#     st.divider()
-
-#     st.title("📊 Customer Retention Report")
-
-#     # ----------------------------------------------------------
-#     # Executive Summary
-#     # ----------------------------------------------------------
-
-#     st.header("Executive Summary")
-
-#     st.write(report["summary"]["executive_summary"])
-
-#     st.header("Overall Assessment")
-
-#     st.info(report["summary"]["overall_assessment"])
-
-#     # ----------------------------------------------------------
-#     # Key Findings & Recommended Actions
-#     # ----------------------------------------------------------
-
-#     col1, col2 = st.columns(2)
-
-#     with col1:
-
-#         st.subheader("Key Findings")
-
-#         for finding in report["summary"]["key_findings"]:
-#             st.markdown(f"• {finding}")
-
-#     with col2:
-
-#         st.subheader("Recommended Actions")
-
-#         for action in report["summary"]["recommended_actions"]:
-#             st.markdown(f"• {action}")
-
-#     st.divider()
-
-#     # ----------------------------------------------------------
-#     # Charts
-#     # ----------------------------------------------------------
-
-#     st.header("Visual Insights")
-
-#     chart_col1, chart_col2 = st.columns(2)
-
-#     with chart_col1:
-
-#         st.subheader("Sentiment Distribution")
-
-#         st.image(
-#             report["charts"]["sentiment_chart"],
-#             use_container_width=True,
-#         )
-
-#         st.subheader("Pain Points")
-
-#         st.image(
-#             report["charts"]["pain_point_chart"],
-#             use_container_width=True,
-#         )
-
-#     with chart_col2:
-
-#         st.subheader("Appreciations")
-
-#         st.image(
-#             report["charts"]["appreciation_chart"],
-#             use_container_width=True,
-#         )
-
-#     st.divider()
-
-#     # ----------------------------------------------------------
-#     # Feedback Themes
-#     # ----------------------------------------------------------
-
-#     col1, col2 = st.columns(2)
-
-#     with col1:
-
-#         st.subheader("Top Pain Points")
-
-#         for pain in report["feedback_themes"]["pain_points"]:
-
-#             st.markdown(
-#                 f"**{pain['title']}** — {pain['count']} accounts"
-#             )
-
-#     with col2:
-
-#         st.subheader("Top Appreciations")
-
-#         for item in report["feedback_themes"]["appreciations"]:
-
-#             st.markdown(
-#                 f"**{item['title']}** — {item['count']} accounts"
-#             )
-
-#     st.divider()
-
-#     # ----------------------------------------------------------
-#     # Chart Insights
-#     # ----------------------------------------------------------
-
-#     st.header("Chart Insights")
-
-#     st.markdown(
-#         f"**Sentiment:** {report['summary']['chart_insights']['sentiment']}"
-#     )
-
-#     st.markdown(
-#         f"**Pain Points:** {report['summary']['chart_insights']['pain_points']}"
-#     )
-
-#     st.markdown(
-#         f"**Appreciations:** {report['summary']['chart_insights']['appreciations']}"
-#     )
-
-#     st.divider()
-
-#     # ----------------------------------------------------------
-#     # Download PDF
-#     # ----------------------------------------------------------
-
-#     st.header("Download Report")
-
-#     with open(report["pdf"], "rb") as pdf_file:
-
-#         st.download_button(
-#             label="📄 Download Customer Retention Report",
-#             data=pdf_file,
-#             file_name="customer_retention_report.pdf",
-#             mime="application/pdf",
-#             use_container_width=True,
-#         )
-
-# if st.session_state.report is not None:
-
-#     st.divider()
-
-#     st.subheader("Report")
-
-#     st.write(st.session_state.report)
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "type": "report",
+                        "content": data["graph_state"],
+                    }
+                )
