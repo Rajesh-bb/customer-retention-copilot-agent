@@ -231,12 +231,29 @@ def csm_agent(user_input: str, thread_id: str,execute_action : bool):
         result = {
             "response": final_response,
             "analysis_ran": tool_name == "run_customer_analysis",
+            "operation": "analysis" if tool_name == "run_customer_analysis" else "chat",
         }
 
         if tool_name == "run_customer_analysis":
             result["graph_state"] = tool_result["result"]
 
         return result
+    
+    return {
+        "response": response,
+        "analysis_ran": False,
+        "operation": "chat",
+        }
+
+        # result = {
+        #     "response": final_response,
+        #     "analysis_ran": tool_name == "run_customer_analysis",
+        # }
+
+        # if tool_name == "run_customer_analysis":
+        #     result["graph_state"] = tool_result["result"]
+
+        # return result
 
         # return {
         #     "response": final_response,
@@ -244,10 +261,11 @@ def csm_agent(user_input: str, thread_id: str,execute_action : bool):
         #     "analysis_ran": tool_name == "run_customer_analysis"
         # }
 
-    return {
-        "response": response,
-        "analysis_ran": False
-    }
+
+    # return {
+    #     "response": response,
+    #     "analysis_ran": False
+    # }
 
 
 if __name__ == "__main__":

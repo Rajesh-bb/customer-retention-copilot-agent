@@ -28,6 +28,7 @@ class ChatResponse(BaseModel):
     response: Optional[Any] = None
     payload: Optional[dict] = None
     graph_state: Optional[dict] = None
+    operation: Optional[str] = None
 
     
 app = FastAPI()
@@ -61,6 +62,7 @@ def chat(request: ChatRequest):
                 type="approval",
                 thread_id = thread_id,
                 payload = result["payload"],
+                operation=None,
             )
 
         if result.get("analysis_ran"):
@@ -77,6 +79,7 @@ def chat(request: ChatRequest):
                 thread_id=thread_id,
                 response=response,
                 graph_state=result["graph_state"],
+                operation=result["operation"],
             )
         
         response = result["response"].content #
@@ -92,6 +95,7 @@ def chat(request: ChatRequest):
             type="chat",
             thread_id=thread_id,
             response=response,
+            operation=result["operation"],
         )
 
     except Exception as e:
@@ -121,6 +125,7 @@ def approval(request: ApprovalRequest):
             type="report",
             thread_id=request.thread_id,
             graph_state=result["result"]["report"],
+            operation="analysis",
         )
 
     except Exception as e:
