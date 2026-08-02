@@ -311,205 +311,209 @@ if st.session_state.pending_payload is not None:
 
 if st.session_state.pending_payload is not None:
 
-    st.divider()
-    st.subheader("Human Approval Required")
+    with st.sidebar:
 
-    payload = st.session_state.pending_payload.copy()
+        st.header("Human Approval")
 
-    st.write("Review the action below before executing it.")
+        payload = st.session_state.pending_payload.copy()
 
-    with st.expander("Action Details", expanded=True):
 
-        account_id = st.text_input(
-            "Account ID",
-            value=str(payload.get("account_id", "")),
-            disabled=True,
-        )
+        # payload = st.session_state.pending_payload.copy()
 
-        action = st.text_input(
-            "Action",
-            value=payload.get("action", ""),
-            disabled=True,
-        )
+        st.write("Review the action below before executing it.")
 
-        reason = st.text_area(
-            "Reason",
-            value=payload.get("reason", ""),
-            height=100,
-        )
+        with st.expander("Action Details", expanded=True):
 
-        payload["reason"] = reason
-
-        if "email" in payload:
-
-            st.markdown("### Email")
-
-            email_to = st.text_input(
-                "To",
-                value=payload["email"].get("to", ""),
+            account_id = st.text_input(
+                "Account ID",
+                value=str(payload.get("account_id", "")),
+                disabled=True,
             )
 
-            email_subject = st.text_input(
-                "Subject",
-                value=payload["email"].get("subject", ""),
+            action = st.text_input(
+                "Action",
+                value=payload.get("action", ""),
+                disabled=True,
             )
 
-            email_body = st.text_area(
-                "Body",
-                value=payload["email"].get("body", ""),
-                height=250,
+            reason = st.text_area(
+                "Reason",
+                value=payload.get("reason", ""),
+                height=100,
             )
 
-            payload["email"]["to"] = email_to
-            payload["email"]["subject"] = email_subject
-            payload["email"]["body"] = email_body
+            payload["reason"] = reason
 
-        if "meeting" in payload:
+            if "email" in payload:
 
-            st.markdown("### Meeting")
+                st.markdown("### Email")
 
-            meeting_subject = st.text_input(
-                "Meeting Subject",
-                value=payload["meeting"].get("subject", ""),
-            )
+                email_to = st.text_input(
+                    "To",
+                    value=payload["email"].get("to", ""),
+                )
 
-            meeting_email = st.text_input(
-                "Customer Email",
-                value=payload["meeting"].get("customer_email", ""),
-            )
+                email_subject = st.text_input(
+                    "Subject",
+                    value=payload["email"].get("subject", ""),
+                )
 
-            meeting_description = st.text_area(
-                "Meeting Description",
-                value=payload["meeting"].get("description", ""),
-                height=150,
-            )
+                email_body = st.text_area(
+                    "Body",
+                    value=payload["email"].get("body", ""),
+                    height=250,
+                )
 
-            payload["meeting"]["subject"] = meeting_subject
-            payload["meeting"]["customer_email"] = meeting_email
-            payload["meeting"]["description"] = meeting_description
+                payload["email"]["to"] = email_to
+                payload["email"]["subject"] = email_subject
+                payload["email"]["body"] = email_body
 
-    approve_col, reject_col = st.columns(2)
+            if "meeting" in payload:
+
+                st.markdown("### Meeting")
+
+                meeting_subject = st.text_input(
+                    "Meeting Subject",
+                    value=payload["meeting"].get("subject", ""),
+                )
+
+                meeting_email = st.text_input(
+                    "Customer Email",
+                    value=payload["meeting"].get("customer_email", ""),
+                )
+
+                meeting_description = st.text_area(
+                    "Meeting Description",
+                    value=payload["meeting"].get("description", ""),
+                    height=150,
+                )
+
+                payload["meeting"]["subject"] = meeting_subject
+                payload["meeting"]["customer_email"] = meeting_email
+                payload["meeting"]["description"] = meeting_description
+
+        approve_col, reject_col = st.columns(2)
 
 
-    with approve_col:
+        with approve_col:
 
-        if st.button(
-            "Approve",
-            use_container_width=True,
-            type="primary",
-        ):
+            if st.button(
+                "Approve",
+                use_container_width=True,
+                type="primary",
+            ):
 
-            approval_request = {
-                "thread_id": st.session_state.thread_id,
-                "approval": {
-                    "decision": "approve",
-                    "payload": payload,
-                },
-            }
+                approval_request = {
+                    "thread_id": st.session_state.thread_id,
+                    "approval": {
+                        "decision": "approve",
+                        "payload": payload,
+                    },
+                }
 
-            with st.spinner("Executing action..."):
+                with st.spinner("Executing action..."):
 
-                try:
+                    try:
 
-                    response = requests.post(
-                        f"{API_URL}/approval",
-                        json=approval_request,
+                        response = requests.post(
+                            f"{API_URL}/approval",
+                            json=approval_request,
+                        )
+
+                        response.raise_for_status()
+
+                        data = response.json()
+
+                    except Exception as e:
+
+                        st.error(str(e))
+                        st.stop()
+
+
+                if data["type"] == "approval":
+
+                    st.session_state.pending_payload = data["payload"]
+
+                    st.rerun()
+
+                else:
+
+                    st.session_state.pending_payload = None
+
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "type": "text",
+                            "content": "Analysis completed successfully.",
+                        }
                     )
 
-                    response.raise_for_status()
-
-                    data = response.json()
-
-                except Exception as e:
-
-                    st.error(str(e))
-                    st.stop()
-
-
-            if data["type"] == "approval":
-
-                st.session_state.pending_payload = data["payload"]
-
-                st.rerun()
-
-            else:
-
-                st.session_state.pending_payload = None
-
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "type": "text",
-                        "content": "Analysis completed successfully.",
-                    }
-                )
-
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "type": "report",
-                        "content": data["graph_state"],
-                    }
-                )
-
-                st.rerun()
-
-
-    with reject_col:
-
-        if st.button(
-            "Reject",
-            use_container_width=True,
-        ):
-
-            approval_request = {
-                "thread_id": st.session_state.thread_id,
-                "approval": {
-                    "decision": "reject",
-                    "payload": payload,
-                },
-            }
-
-            with st.spinner("Updating..."):
-
-                try:
-
-                    response = requests.post(
-                        f"{API_URL}/approval",
-                        json=approval_request,
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "type": "report",
+                            "content": data["graph_state"],
+                        }
                     )
 
-                    response.raise_for_status()
+                    st.rerun()
 
-                    data = response.json()
 
-                except Exception as e:
+        with reject_col:
 
-                    st.error(str(e))
-                    st.stop()
+            if st.button(
+                "Reject",
+                use_container_width=True,
+            ):
 
-            if data["type"] == "approval":
+                approval_request = {
+                    "thread_id": st.session_state.thread_id,
+                    "approval": {
+                        "decision": "reject",
+                        "payload": payload,
+                    },
+                }
 
-                st.session_state.pending_payload = data["payload"]
+                with st.spinner("Updating..."):
 
-                st.rerun()
+                    try:
 
-            else:
+                        response = requests.post(
+                            f"{API_URL}/approval",
+                            json=approval_request,
+                        )
 
-                st.session_state.pending_payload = None
+                        response.raise_for_status()
 
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "type": "text",
-                        "content": "Analysis completed successfully.",
-                    }
-                )
+                        data = response.json()
 
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "type": "report",
-                        "content": data["graph_state"],
-                    }
-                )
+                    except Exception as e:
+
+                        st.error(str(e))
+                        st.stop()
+
+                if data["type"] == "approval":
+
+                    st.session_state.pending_payload = data["payload"]
+
+                    st.rerun()
+
+                else:
+
+                    st.session_state.pending_payload = None
+
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "type": "text",
+                            "content": "Analysis completed successfully.",
+                        }
+                    )
+
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "type": "report",
+                            "content": data["graph_state"],
+                        }
+                    )
